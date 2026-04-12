@@ -1,0 +1,41 @@
+name: macro-bot
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'   # 毎週月曜 02:00 UTC（日曜夜〜月曜朝）
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  run-macro-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run macro bot
+        run: cd macro && python -u main.py
+
+      - name: Commit data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add data/
+          git diff --cached --quiet || git commit -m "chore: macro bot run $(date -u '+%Y-%m-%dT%H:%M')"
+          git push

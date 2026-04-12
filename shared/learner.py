@@ -26,6 +26,9 @@ DEFAULTS = {
     "LONG":   {"buy_threshold": 4,  "sell_threshold": -4,
                "min_buy": 3, "max_buy": 7, "min_sell": -7, "max_sell": -3,
                "signal_weights": {}},
+    "MACRO":  {"buy_threshold": 5,  "sell_threshold": -5,
+               "min_buy": 3, "max_buy": 8, "min_sell": -8, "max_sell": -3,
+               "signal_weights": {}},  # 高閾値：強いシグナルが揃ったときだけBUY
 }
 
 MIN_TRADES_TO_LEARN = 5

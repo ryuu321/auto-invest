@@ -27,6 +27,7 @@ def write_summary():
         ("portfolio_long.json",   "LONG"),
         ("portfolio_medium.json", "MEDIUM"),
         ("portfolio_short.json",  "SHORT"),
+        ("portfolio_macro.json",  "MACRO"),
     ]:
         path = DATA_DIR / fname
         if path.exists():

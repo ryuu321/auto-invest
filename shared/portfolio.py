@@ -52,13 +52,15 @@ class Portfolio:
                  state_file: str = "portfolio.json",
                  take_profit_pct: float = 0.20,      # +20%で利確
                  stop_loss_pct: float = 0.10,         # -10%で損切り
-                 trailing_stop_pct: float = 0.07):    # 高値から-7%でトレーリング
+                 trailing_stop_pct: float = 0.07,     # 高値から-7%でトレーリング
+                 disable_price_exits: bool = False):  # Trueにすると価格ベース出口ルールを無効化
         self.initial_balance = initial_balance
         self.risk_per_trade = risk_per_trade
         self.max_positions = max_positions
         self.take_profit_pct = take_profit_pct
         self.stop_loss_pct = stop_loss_pct
         self.trailing_stop_pct = trailing_stop_pct
+        self.disable_price_exits = disable_price_exits
         self._state_path = STATE_DIR / state_file
 
         self.balance = initial_balance
@@ -70,10 +72,15 @@ class Portfolio:
     def check_exits(self, ticker: str, current_price: float) -> tuple[bool, str]:
         """
         利確・損切り・トレーリングストップの判断
+        disable_price_exits=True の場合は常に (False, "") を返す（長期マクロ保有用）
         戻り値: (売るべきか, 理由)
         """
         pos = self.positions.get(ticker)
         if not pos:
+            return False, ""
+
+        # 価格ベースの出口ルールが無効な場合（マクロ予測ボット用）
+        if self.disable_price_exits:
             return False, ""
 
         change_pct = (current_price - pos.buy_price) / pos.buy_price
@@ -88,7 +95,7 @@ class Portfolio:
 
         # 3. トレーリングストップ（高値から一定以上落ちたら売り）
         if current_price > pos.peak_price:
-            pos.peak_price = current_price  # 高値を更新
+            pos.peak_price = current_price
             self._save()
         drop_from_peak = (current_price - pos.peak_price) / pos.peak_price
         if drop_from_peak <= -self.trailing_stop_pct:
