@@ -44,18 +44,52 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(f"\n{'='*55}")
     print(f"[LONG] {now}")
-    print("[1] ファンダメンタルズ収集中...")
+    print("[1] マクロ先行指標・ファンダメンタルズ収集中...")
 
     data = collect_all()
     save_snapshot(data)
 
-    scores = data.get("scores", {})
-    funds  = data.get("fundamentals", {})
+    scores    = data.get("scores", {})
+    funds     = data.get("fundamentals", {})
+    cycle     = data.get("economic_cycle", {})
+    macro_ind = data.get("macro_indicators", {})
+
+    # ── 経済サイクル・マクロ先行指標を表示 ──────────────────
+    print(f"\n[マクロ先行指標]")
+    if macro_ind:
+        yc_spread = macro_ind.get("yield_curve_spread")
+        if yc_spread is not None:
+            inv = " ★逆転中" if macro_ind.get("yield_curve_inverted") else ""
+            print(f"  イールドカーブ: 10Y={macro_ind.get('yield_10y','N/A')}%  "
+                  f"3M={macro_ind.get('yield_3m','N/A')}%  "
+                  f"スプレッド={yc_spread:.3f}%{inv}")
+        if macro_ind.get("vix") is not None:
+            rising = " ↑上昇中" if macro_ind.get("vix_rising") else ""
+            print(f"  VIX: {macro_ind.get('vix')} ({macro_ind.get('vix_regime','?')}){rising}")
+        if macro_ind.get("dollar_trend"):
+            print(f"  ドル: {macro_ind.get('dollar_trend')} ({macro_ind.get('dollar_change_pct',0):+.1f}%)")
+        if macro_ind.get("gold_trend"):
+            print(f"  金:  {macro_ind.get('gold_trend')} ({macro_ind.get('gold_change_pct',0):+.1f}%)")
+        if macro_ind.get("credit_stress"):
+            print(f"  クレジット: ★スプレッド拡大 → 信用リスク上昇")
+        elif macro_ind.get("credit_spread_tightening"):
+            print(f"  クレジット: スプレッド縮小 → リスクオン")
+
+    if cycle:
+        print(f"\n[経済サイクル] {cycle.get('label','?')} (スコア={cycle.get('score',0):+d})")
+        print(f"  推奨行動: {cycle.get('action','')}")
+        rec_etfs = cycle.get("recommended_etfs", [])
+        if rec_etfs:
+            print(f"  推奨ETF: {', '.join(rec_etfs)}")
+        for sig in cycle.get("signals", []):
+            print(f"  → {sig}")
 
     # 全銘柄の現在価格
     prices = {t: f.get("price", 0) for t, f in funds.items() if f.get("price")}
 
     # ── 保有中ポジションの売り判断 ────────────────────────
+    cycle_phase = cycle.get("phase", "UNKNOWN")
+
     for ticker in list(portfolio.positions.keys()):
         price = prices.get(ticker)
         if not price:
@@ -71,6 +105,16 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
                 print(f"[SELL] {ticker} @ ${price:,.2f}  {exit_reason}  PnL={sign}${rec.pnl:,.2f}")
             continue
 
+        # 経済サイクルが深刻な後退期 → 全保有を整理（先回り撤退）
+        if cycle_phase == "SEVERE_CONTRACTION":
+            reason = f"経済サイクル={cycle_phase}: 先行指標が深刻な後退を示唆→先手で全ポジション整理"
+            rec = portfolio.sell(ticker, price, reason, 0.9, "LOW")
+            if rec:
+                save_trade(make_trade_record(rec))
+                sign = "+" if rec.pnl >= 0 else ""
+                print(f"[SELL] {ticker} @ ${price:,.2f}  {reason}  PnL={sign}${rec.pnl:,.2f}")
+            continue
+
         # ファンダスコア悪化による売り
         score = scores.get(ticker, 0)
         if score <= SELL_THRESHOLD:
@@ -80,8 +124,8 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
                 sign = "+" if rec.pnl >= 0 else ""
                 print(f"[SELL] {ticker} @ ${price:,.2f}  PnL={sign}${rec.pnl:,.2f}")
 
-    # ── スコアランキング表示 ──────────────────────────────
-    print("    銘柄スコアランキング:")
+    # ── 銘柄スコアランキング表示 ─────────────────────────────
+    print("\n    銘柄ファンダスコアランキング:")
     for ticker, score in sorted(scores.items(), key=lambda x: -x[1])[:5]:
         f = funds.get(ticker, {})
         held = "★保有中" if ticker in portfolio.positions else ""
@@ -93,11 +137,16 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
     rec_ticker = analysis.get("recommended")
     decision   = analysis["decision"]
 
-    print(f"\n[2] シグナル分析 (推奨: {rec_ticker}):")
+    print(f"\n[2] シグナル分析 (推奨銘柄: {rec_ticker}):")
     for s in analysis.get("signals", []):
-        mark = "+" if s["score"] > 0 else ("-" if s["score"] < 0 else " ")
+        if s["score"] == 0:
+            continue
+        mark = "+" if s["score"] > 0 else "-"
         print(f"    [{mark}] {s['reason']}")
-    print(f"\n    判断: {decision}  スコア={analysis['total_score']:+d}  "
+    rec_etfs = analysis.get("recommended_etfs", [])
+    if rec_etfs:
+        print(f"    [→] 現フェーズ推奨ETF: {', '.join(rec_etfs)}")
+    print(f"\n    判断: {decision}  スコア={analysis['total_score']:+.1f}  "
           f"確信度={analysis['confidence']:.0%}  リスク={analysis['risk_level']}")
 
     if decision == "BUY" and rec_ticker:
