@@ -11,6 +11,7 @@ from collector import collect_all
 from analyzer import LongTermAnalyzer
 from portfolio import Portfolio
 from logger import init_db, save_trade, save_snapshot
+from summary import write_summary
 
 INITIAL_BALANCE  = 10000.0
 INTERVAL_SECONDS = 604800   # 1週間
@@ -52,17 +53,30 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
     # 全銘柄の現在価格
     prices = {t: f.get("price", 0) for t, f in funds.items() if f.get("price")}
 
-    # ── 保有中ポジションの評価（売り判断）────────────────
+    # ── 保有中ポジションの売り判断 ────────────────────────
     for ticker in list(portfolio.positions.keys()):
+        price = prices.get(ticker)
+        if not price:
+            continue
+
+        # 利確・損切り・トレーリングストップ（最優先）
+        should_exit, exit_reason = portfolio.check_exits(ticker, price)
+        if should_exit:
+            rec = portfolio.sell(ticker, price, exit_reason, 0.9, "LOW")
+            if rec:
+                save_trade(make_trade_record(rec))
+                sign = "+" if rec.pnl >= 0 else ""
+                print(f"[SELL] {ticker} @ ${price:,.2f}  {exit_reason}  PnL={sign}${rec.pnl:,.2f}")
+            continue
+
+        # ファンダスコア悪化による売り
         score = scores.get(ticker, 0)
         if score <= SELL_THRESHOLD:
-            price = prices.get(ticker)
-            if price:
-                rec = portfolio.sell(ticker, price, f"ファンダスコア={score}→売却基準以下", 0.7, "MEDIUM")
-                if rec:
-                    save_trade(make_trade_record(rec))
-                    sign = "+" if rec.pnl >= 0 else ""
-                    print(f"[SELL] {ticker} @ ${price:,.2f}  PnL={sign}${rec.pnl:,.2f}")
+            rec = portfolio.sell(ticker, price, f"ファンダスコア={score}→売却基準以下", 0.7, "MEDIUM")
+            if rec:
+                save_trade(make_trade_record(rec))
+                sign = "+" if rec.pnl >= 0 else ""
+                print(f"[SELL] {ticker} @ ${price:,.2f}  PnL={sign}${rec.pnl:,.2f}")
 
     # ── スコアランキング表示 ──────────────────────────────
     print("    銘柄スコアランキング:")
@@ -129,6 +143,8 @@ def main():
         import traceback
         print(f"[ERROR] {e}")
         traceback.print_exc()
+    finally:
+        write_summary()
 
 
 if __name__ == "__main__":

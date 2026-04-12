@@ -1,9 +1,9 @@
 """
 マルチ銘柄ポートフォリオ管理
-長期・中期ボット用（複数銘柄を同時保有できる）
+長期・中期・短期ボット用
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 import json
@@ -18,11 +18,12 @@ class Position:
     shares: float
     buy_price: float
     bought_at: str
-    cost_basis: float  # 購入総額
+    cost_basis: float
+    peak_price: float = 0.0   # トレーリングストップ用・最高値を追跡
 
-    @property
-    def unrealized_pnl(self) -> float:
-        return 0.0  # 現在価格が必要なので外部から計算
+    def __post_init__(self):
+        if self.peak_price == 0.0:
+            self.peak_price = self.buy_price
 
 
 @dataclass
@@ -41,22 +42,58 @@ class TradeRecord:
 
 
 class Portfolio:
-    """複数銘柄を管理するポートフォリオ（状態をJSONで永続化）"""
+    """複数銘柄を管理するポートフォリオ（利確・損切り・トレーリングストップ付き）"""
 
-    def __init__(self, initial_balance: float = 10000.0,
+    def __init__(self,
+                 initial_balance: float = 10000.0,
                  risk_per_trade: float = 0.15,
                  max_positions: int = 5,
-                 state_file: str = "portfolio.json"):
+                 state_file: str = "portfolio.json",
+                 take_profit_pct: float = 0.20,      # +20%で利確
+                 stop_loss_pct: float = 0.10,         # -10%で損切り
+                 trailing_stop_pct: float = 0.07):    # 高値から-7%でトレーリング
         self.initial_balance = initial_balance
         self.risk_per_trade = risk_per_trade
         self.max_positions = max_positions
+        self.take_profit_pct = take_profit_pct
+        self.stop_loss_pct = stop_loss_pct
+        self.trailing_stop_pct = trailing_stop_pct
         self._state_path = STATE_DIR / state_file
 
-        # デフォルト値をセット後、保存済み状態を上書きロード
         self.balance = initial_balance
         self.positions: dict[str, Position] = {}
         self.trade_history: list[TradeRecord] = []
         self._load()
+
+    # ── 利確・損切りチェック ──────────────────────────────
+    def check_exits(self, ticker: str, current_price: float) -> tuple[bool, str]:
+        """
+        利確・損切り・トレーリングストップの判断
+        戻り値: (売るべきか, 理由)
+        """
+        pos = self.positions.get(ticker)
+        if not pos:
+            return False, ""
+
+        change_pct = (current_price - pos.buy_price) / pos.buy_price
+
+        # 1. 利確
+        if change_pct >= self.take_profit_pct:
+            return True, f"利確: +{change_pct*100:.1f}% (閾値+{self.take_profit_pct*100:.0f}%)"
+
+        # 2. 損切り
+        if change_pct <= -self.stop_loss_pct:
+            return True, f"損切り: {change_pct*100:.1f}% (閾値-{self.stop_loss_pct*100:.0f}%)"
+
+        # 3. トレーリングストップ（高値から一定以上落ちたら売り）
+        if current_price > pos.peak_price:
+            pos.peak_price = current_price  # 高値を更新
+            self._save()
+        drop_from_peak = (current_price - pos.peak_price) / pos.peak_price
+        if drop_from_peak <= -self.trailing_stop_pct:
+            return True, f"トレーリングストップ: 高値${pos.peak_price:,.2f}から{drop_from_peak*100:.1f}% (閾値-{self.trailing_stop_pct*100:.0f}%)"
+
+        return False, ""
 
     # ── 永続化 ────────────────────────────────────────────
     def _save(self):
@@ -71,6 +108,7 @@ class Portfolio:
                     "buy_price":  p.buy_price,
                     "bought_at":  p.bought_at,
                     "cost_basis": p.cost_basis,
+                    "peak_price": p.peak_price,
                 }
                 for t, p in self.positions.items()
             },
@@ -84,7 +122,7 @@ class Portfolio:
         try:
             with open(self._state_path, encoding="utf-8") as f:
                 data = json.load(f)
-            self.balance        = data.get("balance", self.balance)
+            self.balance = data.get("balance", self.balance)
             self.initial_balance = data.get("initial_balance", self.initial_balance)
             self.positions = {
                 t: Position(**p)
@@ -96,36 +134,25 @@ class Portfolio:
 
     def buy(self, ticker: str, price: float, reasoning: str = "",
             confidence: float = 0.5, risk_level: str = "MEDIUM") -> Optional[TradeRecord]:
-        """銘柄を購入"""
         if ticker in self.positions:
-            return None  # 既に保有中
+            return None
         if len(self.positions) >= self.max_positions:
-            return None  # ポジション上限
-
+            return None
         invest = self.balance * self.risk_per_trade
         if invest < 1:
             return None
-
         shares = invest / price
         self.balance -= invest
         self.positions[ticker] = Position(
-            ticker=ticker,
-            shares=shares,
-            buy_price=price,
+            ticker=ticker, shares=shares, buy_price=price,
             bought_at=datetime.now(timezone.utc).isoformat(),
-            cost_basis=invest,
+            cost_basis=invest, peak_price=price,
         )
         record = TradeRecord(
             timestamp=datetime.now(timezone.utc).isoformat(),
-            action="BUY",
-            ticker=ticker,
-            price=price,
-            shares=shares,
-            value_usd=invest,
-            balance_after=self.balance,
-            reasoning=reasoning,
-            confidence=confidence,
-            risk_level=risk_level,
+            action="BUY", ticker=ticker, price=price,
+            shares=shares, value_usd=invest, balance_after=self.balance,
+            reasoning=reasoning, confidence=confidence, risk_level=risk_level,
         )
         self.trade_history.append(record)
         self._save()
@@ -133,39 +160,27 @@ class Portfolio:
 
     def sell(self, ticker: str, price: float, reasoning: str = "",
              confidence: float = 0.5, risk_level: str = "MEDIUM") -> Optional[TradeRecord]:
-        """銘柄を売却"""
         if ticker not in self.positions:
             return None
-
         pos = self.positions.pop(ticker)
         sell_value = pos.shares * price
         pnl = sell_value - pos.cost_basis
         self.balance += sell_value
-
         record = TradeRecord(
             timestamp=datetime.now(timezone.utc).isoformat(),
-            action="SELL",
-            ticker=ticker,
-            price=price,
-            shares=pos.shares,
-            value_usd=sell_value,
-            balance_after=self.balance,
-            pnl=pnl,
-            reasoning=reasoning,
-            confidence=confidence,
-            risk_level=risk_level,
+            action="SELL", ticker=ticker, price=price,
+            shares=pos.shares, value_usd=sell_value, balance_after=self.balance,
+            pnl=pnl, reasoning=reasoning, confidence=confidence, risk_level=risk_level,
         )
         self.trade_history.append(record)
         self._save()
         return record
 
     def portfolio_value(self, prices: dict[str, float]) -> float:
-        """現在の総資産（現金 + 保有株の時価）"""
-        stock_value = sum(
+        return self.balance + sum(
             pos.shares * prices.get(pos.ticker, pos.buy_price)
             for pos in self.positions.values()
         )
-        return self.balance + stock_value
 
     def summary(self, prices: dict[str, float]) -> dict:
         pv = self.portfolio_value(prices)
@@ -173,24 +188,22 @@ class Portfolio:
         wins = [t for t in sells if t.pnl > 0]
         win_rate = len(wins) / len(sells) * 100 if sells else 0.0
         total_pnl = sum(t.pnl for t in sells)
-
         positions_info = []
         for ticker, pos in self.positions.items():
             current = prices.get(ticker, pos.buy_price)
             unrealized = (current - pos.buy_price) / pos.buy_price * 100
             positions_info.append(
                 f"{ticker}: {pos.shares:.4f}株 @ ${pos.buy_price:,.2f} "
-                f"→ ${current:,.2f} ({'+' if unrealized >= 0 else ''}{unrealized:.1f}%)"
+                f"-> ${current:,.2f} ({'+' if unrealized >= 0 else ''}{unrealized:.1f}%)"
             )
-
         return {
-            "portfolio_value":   round(pv, 2),
-            "cash_balance":      round(self.balance, 2),
-            "initial_balance":   self.initial_balance,
-            "total_return_pct":  round((pv / self.initial_balance - 1) * 100, 2),
-            "realized_pnl":      round(total_pnl, 2),
-            "win_rate":          round(win_rate, 1),
-            "total_trades":      len(sells),
-            "open_positions":    len(self.positions),
-            "positions":         positions_info,
+            "portfolio_value":  round(pv, 2),
+            "cash_balance":     round(self.balance, 2),
+            "initial_balance":  self.initial_balance,
+            "total_return_pct": round((pv / self.initial_balance - 1) * 100, 2),
+            "realized_pnl":     round(total_pnl, 2),
+            "win_rate":         round(win_rate, 1),
+            "total_trades":     len(sells),
+            "open_positions":   len(self.positions),
+            "positions":        positions_info,
         }

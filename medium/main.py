@@ -11,6 +11,7 @@ from collector import collect_all
 from analyzer import MediumTermAnalyzer
 from portfolio import Portfolio
 from logger import init_db, save_trade, save_snapshot
+from summary import write_summary
 
 INITIAL_BALANCE  = 10000.0
 INTERVAL_SECONDS = 86400    # 24時間
@@ -60,17 +61,28 @@ def run_cycle(portfolio: Portfolio, analyzer: MediumTermAnalyzer):
 
     # ── 保有中ポジションの売り判断 ────────────────────────
     for ticker in list(portfolio.positions.keys()):
-        info = assets.get(ticker, {})
-        if not info:
+        price = prices.get(ticker)
+        if not price:
             continue
-        # デスクロスまたはMA50下抜けで売り検討
-        should_sell = (
-            info.get("death_cross") or
-            info.get("above_ma50") is False and info.get("above_ma200") is False
-        )
-        if should_sell:
-            price = prices.get(ticker)
-            if price:
+
+        # 利確・損切り・トレーリングストップ（最優先）
+        should_exit, exit_reason = portfolio.check_exits(ticker, price)
+        if should_exit:
+            rec = portfolio.sell(ticker, price, exit_reason, 0.9, "LOW")
+            if rec:
+                save_trade(make_trade_record(rec))
+                sign = "+" if rec.pnl >= 0 else ""
+                print(f"\n[SELL] {ticker} @ ${price:,.2f}  {exit_reason}  PnL={sign}${rec.pnl:,.2f}")
+            continue
+
+        # テクニカル悪化による売り
+        info = assets.get(ticker, {})
+        if info:
+            should_sell = (
+                info.get("death_cross") or
+                info.get("above_ma50") is False and info.get("above_ma200") is False
+            )
+            if should_sell:
                 rec = portfolio.sell(ticker, price, "デスクロスまたはMA50/200下抜け", 0.7, "MEDIUM")
                 if rec:
                     save_trade(make_trade_record(rec))
@@ -129,6 +141,8 @@ def main():
         import traceback
         print(f"[ERROR] {e}")
         traceback.print_exc()
+    finally:
+        write_summary()
 
 
 if __name__ == "__main__":

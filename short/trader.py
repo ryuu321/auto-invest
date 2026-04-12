@@ -4,7 +4,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -53,12 +53,42 @@ class PaperTrader:
         wins = [t for t in sells if t.pnl > 0]
         return len(wins) / len(sells)
 
+    # 利確・損切り設定
+    TAKE_PROFIT  = 0.15   # +15%で利確
+    STOP_LOSS    = 0.08   # -8%で損切り
+    TRAILING     = 0.05   # 高値から-5%でトレーリングストップ
+
+    def _check_exits(self, current_price: float) -> tuple[bool, str]:
+        """利確・損切り・トレーリングストップチェック"""
+        if not self.position:
+            return False, ""
+        change = (current_price - self.position.buy_price) / self.position.buy_price
+        if change >= self.TAKE_PROFIT:
+            return True, f"利確: +{change*100:.1f}%"
+        if change <= -self.STOP_LOSS:
+            return True, f"損切り: {change*100:.1f}%"
+        peak = getattr(self.position, "peak_price", self.position.buy_price)
+        if current_price > peak:
+            self.position.peak_price = current_price
+        else:
+            drop = (current_price - peak) / peak
+            if drop <= -self.TRAILING:
+                return True, f"トレーリングストップ: 高値から{drop*100:.1f}%"
+        return False, ""
+
     def execute(self, decision: str, current_price: float, coin: str,
                 reasoning: str = "", confidence: float = 0.5,
                 risk_level: str = "MEDIUM") -> TradeRecord:
-        """売買判断を受け取って実行する"""
+        """売買判断を受け取って実行する（利確・損切り優先）"""
 
-        timestamp = datetime.utcnow().isoformat()
+        # 保有中なら利確・損切りを最優先チェック
+        if self.position:
+            should_exit, exit_reason = self._check_exits(current_price)
+            if should_exit:
+                decision = "SELL"
+                reasoning = exit_reason
+
+        timestamp = datetime.now(timezone.utc).isoformat()
         pnl = 0.0
 
         if decision == "BUY" and self.position is None and self.balance > 0:
@@ -72,6 +102,7 @@ class PaperTrader:
                 buy_price=current_price,
                 bought_at=timestamp,
             )
+            self.position.peak_price = current_price
             record = TradeRecord(
                 timestamp=timestamp,
                 action="BUY",

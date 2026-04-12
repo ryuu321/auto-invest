@@ -1,0 +1,68 @@
+{
+  "updated_at": "2026-04-12T19:29:35.283406+00:00",
+  "portfolios": {
+    "LONG": {
+      "balance": 8500.0,
+      "initial_balance": 10000.0,
+      "positions": {
+        "MSFT": {
+          "ticker": "MSFT",
+          "shares": 4.044543910265053,
+          "buy_price": 370.87,
+          "bought_at": "2026-04-12T18:18:29.882314+00:00",
+          "cost_basis": 1500.0
+        }
+      }
+    }
+  },
+  "recent_trades": [
+    {
+      "timestamp": "2026-04-12T18:18:29.882328+00:00",
+      "action": "BUY",
+      "coin": "MSFT",
+      "price": 370.87,
+      "amount": 4.044543910265053,
+      "value_usd": 1500.0,
+      "balance_after": 8500.0,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+7 → BUY | PER=23.2 適正（15〜25） | 売上成長率=16.7% 成長中 | 利益率=39.0% 高収益企業 | D/E=32 低負債 → 財務健全 | 高値から-33.2% 下落 → 割安感あり | MSFT 総合ファンダスコア=8 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-04-12T17:39:05.262599+00:00",
+      "action": "BUY",
+      "coin": "MSFT",
+      "price": 370.87,
+      "amount": 4.044543910265053,
+      "value_usd": 1500.0,
+      "balance_after": 8500.0,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+7 → BUY | PER=23.2 適正（15〜25） | 売上成長率=16.7% 成長中 | 利益率=39.0% 高収益企業 | D/E=32 低負債 → 財務健全 | 高値から-33.2% 下落 → 割安感あり | MSFT 総合ファンダスコア=8 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-04-12T17:35:16.698447",
+      "action": "BUY",
+      "coin": "MSFT",
+      "price": 370.87,
+      "amount": 2.696362606843368,
+      "value_usd": 1000.0,
+      "balance_after": 9000.0,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+7 → BUY | PER=23.2 適正（15〜25） | 売上成長率=16.7% 成長中 | 利益率=39.0% 高収益企業 | D/E=32 低負債 → 財務健全 | 高値から-33.2% 下落 → 割安感あり | MSFT 総合ファンダスコア=8 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    }
+  ],
+  "stats": {
+    "total_buys": 3,
+    "total_sells": 0,
+    "realized_pnl": 0,
+    "win_rate": 0.0
+  }
+}

@@ -12,6 +12,9 @@ from analyzer import RuleBasedAnalyzer
 from trader import PaperTrader
 from logger import init_db, save_trade, save_snapshot, get_performance_stats
 from learner import print_report
+import sys
+sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent / "shared"))
+from summary import write_summary
 
 
 # ── 設定 ────────────────────────────────────────────
@@ -100,6 +103,8 @@ def main():
         import traceback
         print(f"[ERROR] {e}")
         traceback.print_exc()
+    finally:
+        write_summary()
 
 
 if __name__ == "__main__":
