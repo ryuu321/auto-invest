@@ -1,0 +1,13 @@
+{
+  "balance": 8500.0,
+  "initial_balance": 10000.0,
+  "positions": {
+    "MSFT": {
+      "ticker": "MSFT",
+      "shares": 4.044543910265053,
+      "buy_price": 370.87,
+      "bought_at": "2026-04-12T18:18:29.882314+00:00",
+      "cost_basis": 1500.0
+    }
+  }
+}

@@ -1,0 +1,40 @@
+name: 長期ボット（毎週月曜）
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'   # 毎週月曜 UTC 2:00（日本時間 11:00）
+  workflow_dispatch:
+
+jobs:
+  run-long-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: コードを取得
+        uses: actions/checkout@v4
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージインストール
+        run: pip install -r requirements.txt
+
+      - name: 長期ボット実行
+        run: |
+          cd long
+          python -u main.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: 結果をリポジトリに保存
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "Auto Bot"
+          git add data/
+          git diff --staged --quiet || git commit -m "bot(long): update $(date -u '+%Y-%m-%d %H:%M') [skip ci]"
+          git push

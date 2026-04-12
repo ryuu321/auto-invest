@@ -1,0 +1,40 @@
+name: 中期ボット（毎日）
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 毎日 UTC 1:00（日本時間 10:00）
+  workflow_dispatch:
+
+jobs:
+  run-medium-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: コードを取得
+        uses: actions/checkout@v4
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージインストール
+        run: pip install -r requirements.txt
+
+      - name: 中期ボット実行
+        run: |
+          cd medium
+          python -u main.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: 結果をリポジトリに保存
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "Auto Bot"
+          git add data/
+          git diff --staged --quiet || git commit -m "bot(medium): update $(date -u '+%Y-%m-%d %H:%M') [skip ci]"
+          git push
