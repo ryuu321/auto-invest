@@ -185,6 +185,15 @@ def api_stats():
     })
 
 
+@app.route("/api/summary_local")
+def api_summary_local():
+    """ローカルの summary.json をそのまま返す（GitHub接続不可時のフォールバック）"""
+    path = DATA_DIR / "summary.json"
+    if path.exists():
+        return path.read_text(encoding="utf-8"), 200, {"Content-Type": "application/json"}
+    return jsonify({"portfolios": {}, "recent_trades": [], "stats": {}, "updated_at": ""})
+
+
 @app.route("/api/live_prices")
 def api_live_prices():
     """保有銘柄のリアルタイム価格"""
@@ -424,6 +433,23 @@ HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Holdings — 投資ダッシュボード</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+// GitHub raw URL から summary.json を取得（キャッシュバスター付き）
+const GITHUB_SUMMARY_URL = 'https://raw.githubusercontent.com/ryuu321/auto-invest/main/data/summary.json';
+async function fetchSummary() {
+  try {
+    const r = await fetch(GITHUB_SUMMARY_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch(e) {
+    // オフライン or GitHub から取れない場合はローカルFlaskにフォールバック
+    try {
+      const r2 = await fetch('/api/summary_local');
+      return await r2.json();
+    } catch(e2) { return null; }
+  }
+}
+</script>
 <style>
   :root {
     --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
@@ -552,27 +578,42 @@ function fmt(n, digits=2) {
   return Number(n).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+let cachedSummary = null;
+
 async function loadStats() {
-  const r = await fetch('/api/stats').then(r => r.json());
-  const pnl = r.realized_pnl || 0;
+  cachedSummary = await fetchSummary();
+  const s = cachedSummary?.stats || {};
+  const pnl = s.realized_pnl || 0;
+
   const el = document.getElementById('kpi-pnl');
   el.textContent = (pnl >= 0 ? '+' : '') + '$' + fmt(pnl);
   el.className = 'stat ' + (pnl >= 0 ? 'green' : 'red');
 
   const wr = document.getElementById('kpi-winrate');
-  wr.textContent = r.win_rate + '%';
-  wr.className = 'stat ' + (r.win_rate >= 50 ? 'green' : 'red');
+  wr.textContent = (s.win_rate || 0) + '%';
+  wr.className = 'stat ' + ((s.win_rate || 0) >= 50 ? 'green' : 'red');
 
-  document.getElementById('kpi-trades').textContent = r.total_buys + ' / ' + r.total_sells;
+  document.getElementById('kpi-trades').textContent =
+    (s.total_buys || 0) + ' / ' + (s.total_sells || 0);
 
-  // 価格タグ
-  const row = document.getElementById('prices-row');
-  const prices = r.latest_prices || {};
-  const keys = Object.keys(prices);
-  if (keys.length === 0) { row.innerHTML = '<span class="empty">スナップショットなし</span>'; return; }
-  row.innerHTML = keys.map(k =>
-    `<div class="price-tag"><div class="label">${k}</div><div class="value">$${fmt(prices[k])}</div></div>`
-  ).join('');
+  // 更新時刻
+  if (cachedSummary?.updated_at) {
+    const d = new Date(cachedSummary.updated_at);
+    document.getElementById('last-update').textContent =
+      'GitHub更新: ' + d.toLocaleString('ja-JP');
+  }
+
+  // 価格タグはライブ価格APIから取得
+  try {
+    const lp = await fetch('/api/live_prices').then(r => r.json());
+    const prices = lp.prices || {};
+    const row = document.getElementById('prices-row');
+    const keys = Object.keys(prices);
+    if (keys.length === 0) { row.innerHTML = '<span class="empty">スナップショットなし</span>'; return; }
+    row.innerHTML = keys.map(k =>
+      `<div class="price-tag"><div class="label">${k}</div><div class="value">$${fmt(prices[k])}</div></div>`
+    ).join('');
+  } catch(e) {}
 }
 
 let allTrades = [];
@@ -619,7 +660,8 @@ function renderTrades() {
 }
 
 async function loadTrades() {
-  allTrades = await fetch('/api/trades').then(r => r.json());
+  const s = cachedSummary || await fetchSummary();
+  allTrades = s?.recent_trades || [];
   renderTrades();
 }
 
@@ -797,62 +839,91 @@ async function loadTickerChart(ticker) {
 }
 
 async function loadPositions() {
-  const bots = await fetch('/api/positions').then(r => r.json());
+  const s = cachedSummary || await fetchSummary();
+  const portfolios = s?.portfolios || {};
   const sec = document.getElementById('positions-section');
-  if (!bots.length || bots.every(b => !b.positions?.length)) {
-    sec.innerHTML = '<div class="card"><p class="empty">保有ポジションなし</p></div>';
-    return;
-  }
 
-  const html = bots.map(b => {
-    if (b.error) return `<div class="card"><h2>${b.bot}</h2><p class="empty">エラー: ${b.error}</p></div>`;
-    if (!b.positions?.length) return '';
-    const retColor = b.return_pct >= 0 ? 'green' : 'red';
+  // ライブ価格を取得してポジションに反映
+  let livePrices = {};
+  try {
+    const lp = await fetch('/api/live_prices').then(r => r.json());
+    livePrices = lp.prices || {};
+  } catch(e) {}
 
-    const posCards = b.positions.map(p => {
-      const c = p.unrealized >= 0 ? 'green' : 'red';
-      const canvasId = 'chart-' + p.ticker.replace(/[^a-zA-Z0-9]/g, '_');
+  const botLabel = { LONG: '長期', MEDIUM: '中期', SHORT: '短期' };
+  const allTickers = [];
+  const cards = [];
+
+  for (const [botKey, data] of Object.entries(portfolios)) {
+    const positions = data.positions || {};
+    if (!Object.keys(positions).length) continue;
+
+    const initial = data.initial_balance || 10000;
+    let stockValue = 0;
+    const posCards = Object.entries(positions).map(([ticker, p]) => {
+      const livePrice = livePrices[ticker] ?? p.buy_price;
+      const unrealized = (livePrice - p.buy_price) * p.shares;
+      const unrealizedPct = (livePrice / p.buy_price - 1) * 100;
+      stockValue += livePrice * p.shares;
+      allTickers.push(ticker);
+      const c = unrealized >= 0 ? 'green' : 'red';
+      const canvasId = 'chart-' + ticker.replace(/[^a-zA-Z0-9]/g, '_');
+
+      // 利確・損切りまでの距離
+      const tp = p.buy_price * 1.20;
+      const sl = p.buy_price * 0.90;
+      const tpDist = ((tp - livePrice) / livePrice * 100).toFixed(1);
+      const slDist = ((livePrice - sl) / livePrice * 100).toFixed(1);
+
       return `
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:12px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
             <div>
-              <span style="font-size:18px;font-weight:700">${p.ticker}</span>
-              <span style="margin-left:10px;font-size:22px;font-weight:700">$${fmt(p.current_price)}</span>
+              <span style="font-size:18px;font-weight:700">${ticker}</span>
+              <span style="margin-left:10px;font-size:22px;font-weight:700">$${fmt(livePrice)}</span>
               <span class="${c}" style="margin-left:8px;font-size:14px">
-                ${p.unrealized >= 0 ? '+' : ''}$${fmt(p.unrealized)}
-                (${p.unrealized_pct >= 0 ? '+' : ''}${fmt(p.unrealized_pct, 2)}%)
+                ${unrealized >= 0 ? '+' : ''}$${fmt(unrealized)}
+                (${unrealizedPct >= 0 ? '+' : ''}${fmt(unrealizedPct, 2)}%)
               </span>
             </div>
             <div style="text-align:right;font-size:12px;color:var(--muted)">
-              <div>${p.shares} 株</div>
+              <div>${fmt(p.shares, 4)} 株</div>
               <div>購入単価 $${fmt(p.buy_price)}</div>
               <div>投資額 $${fmt(p.cost_basis)}</div>
+              <div style="margin-top:4px">
+                <span style="color:var(--green)">利確 $${fmt(tp)} (+${tpDist}%先)</span><br>
+                <span style="color:var(--red)">損切 $${fmt(sl)} (-${slDist}%先)</span>
+              </div>
             </div>
           </div>
           <div style="height:160px"><canvas id="${canvasId}"></canvas></div>
         </div>`;
     }).join('');
 
-    return `<div class="card" style="margin-bottom:12px">
+    const total = (data.balance || 0) + stockValue;
+    const retPct = ((total / initial - 1) * 100).toFixed(2);
+    const retColor = retPct >= 0 ? 'green' : 'red';
+    cards.push(`<div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <h2>${b.bot}ボット</h2>
+        <h2>${botLabel[botKey] || botKey}ボット</h2>
         <span style="font-size:13px">
-          総資産 <strong>$${fmt(b.total_value)}</strong>
-          <span class="${retColor}"> ${b.return_pct >= 0 ? '+' : ''}${b.return_pct}%</span>
-          &nbsp;｜ 現金 $${fmt(b.cash)}
+          総資産 <strong>$${fmt(total)}</strong>
+          <span class="${retColor}"> ${retPct >= 0 ? '+' : ''}${retPct}%</span>
+          &nbsp;｜ 現金 $${fmt(data.balance)}
         </span>
       </div>
       ${posCards}
-    </div>`;
-  }).join('');
+    </div>`);
+  }
 
-  sec.innerHTML = html;
+  if (!cards.length) {
+    sec.innerHTML = '<div class="card"><p class="empty">保有ポジションなし</p></div>';
+    return;
+  }
+  sec.innerHTML = cards.join('');
 
-  // チャート描画（DOM生成後）
-  for (const b of bots) {
-    for (const p of (b.positions || [])) {
-      loadTickerChart(p.ticker);
-    }
+  for (const ticker of [...new Set(allTickers)]) {
+    loadTickerChart(ticker);
   }
 }
 
@@ -868,14 +939,14 @@ async function refreshLivePrices() {
 }
 
 async function loadAll() {
-  await Promise.all([loadStats(), loadPositions(), loadTrades(), loadSnapshots(), loadChart()]);
-  document.getElementById('last-update').textContent =
-    '最終更新: ' + new Date().toLocaleTimeString('ja-JP');
+  cachedSummary = null;  // キャッシュをクリアして必ず最新を取得
+  await Promise.all([loadStats(), loadTrades(), loadSnapshots(), loadChart()]);
+  await loadPositions();
 }
 
 loadAll();
-setInterval(loadPositions, 30000);   // 保有ポジションは30秒ごと
-setInterval(loadAll, 300000);        // 全体は5分ごと
+setInterval(loadPositions, 30000);  // ポジション（ライブ価格）は30秒ごと
+setInterval(loadAll, 120000);       // 全体は2分ごと（GitHub raw URLを毎回叩く）
 </script>
 </body>
 </html>
