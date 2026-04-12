@@ -39,6 +39,7 @@ class TradeRecord:
     reasoning: str = ""
     confidence: float = 0.0
     risk_level: str = "MEDIUM"
+    signals_json: object = None   # 発火シグナルのリスト（学習用）
 
 
 class Portfolio:

@@ -71,7 +71,8 @@ def run_cycle(trader: PaperTrader, analyzer: RuleBasedAnalyzer):
         confidence=confidence,
         risk_level=risk,
     )
-    record.bot_type = "SHORT"
+    record.bot_type    = "SHORT"
+    record.signals_json = analysis.get("signals")
     save_trade(record)
 
     if record.action == "BUY":

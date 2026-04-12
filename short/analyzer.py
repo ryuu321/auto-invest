@@ -26,10 +26,12 @@ class RuleBasedAnalyzer:
     """
 
     def __init__(self):
-        # 学習済み閾値を読み込む
+        import sys
+        from pathlib import Path as _Path
+        sys.path.insert(0, str(_Path(__file__).parent.parent / "shared"))
         try:
             from learner import load_thresholds
-            t = load_thresholds()
+            t = load_thresholds("SHORT")
         except Exception:
             t = {}
         self.RSI_OVERSOLD    = t.get("rsi_oversold",   30.0)
@@ -40,6 +42,7 @@ class RuleBasedAnalyzer:
         self.NEWS_NEG        = t.get("news_negative",   -3)
         self.BUY_THRESHOLD   = t.get("buy_threshold",   2)
         self.SELL_THRESHOLD  = t.get("sell_threshold", -2)
+        self.SIGNAL_WEIGHTS  = t.get("signal_weights", {})
 
     def analyze(self, market_data: dict) -> dict:
         technicals = market_data.get("technicals", {})
@@ -100,8 +103,11 @@ class RuleBasedAnalyzer:
             else:
                 signals.append(Signal("News", news_score,  0, f"ニュース: 中立（スコア={news_score}）"))
 
-        # ── 合計スコアで判断 ──────────────────────────────
-        total_score = sum(s.score for s in signals)
+        # ── 合計スコアで判断（学習済み重みを適用）────────────
+        total_score = sum(
+            s.score * self.SIGNAL_WEIGHTS.get(s.name, 1.0)
+            for s in signals
+        )
 
         if total_score >= self.BUY_THRESHOLD:
             decision: Decision = "BUY"
@@ -112,19 +118,6 @@ class RuleBasedAnalyzer:
         else:
             decision = "HOLD"
             confidence = 0.5
-
-        # 学習レポートを非同期で更新（10取引ごと）
-        try:
-            from learner import analyze, save_thresholds
-            from logger import get_performance_stats
-            stats = get_performance_stats()
-            if stats["total_sells"] > 0 and stats["total_sells"] % 10 == 0:
-                report = analyze()
-                save_thresholds(report.suggested_thresholds)
-                # 閾値を再読込
-                self.__init__()
-        except Exception:
-            pass
 
         # リスクレベル（シグナルの一致度で判定）
         if abs(total_score) >= 4:

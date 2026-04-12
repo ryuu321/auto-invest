@@ -19,7 +19,7 @@ INTERVAL_SECONDS = 604800   # 1週間
 SELL_THRESHOLD   = -2        # ファンダスコアがこれ以下なら売り検討
 
 
-def make_trade_record(rec, coin_field="ticker"):
+def make_trade_record(rec, signals=None):
     """portfolioのTradeRecordをloggerのsave_tradeに渡せる形に変換"""
     class Compat:
         pass
@@ -36,6 +36,7 @@ def make_trade_record(rec, coin_field="ticker"):
     r.confidence   = rec.confidence
     r.risk_level   = rec.risk_level
     r.bot_type     = "LONG"
+    r.signals_json = signals
     return r
 
 
@@ -105,7 +106,7 @@ def run_cycle(portfolio: Portfolio, analyzer: LongTermAnalyzer):
             rec = portfolio.buy(rec_ticker, price, analysis["reasoning"],
                                 analysis["confidence"], analysis["risk_level"])
             if rec:
-                save_trade(make_trade_record(rec))
+                save_trade(make_trade_record(rec, signals=analysis.get("signals")))
                 print(f"\n[BUY]  {rec_ticker} {rec.shares:.4f}株 @ ${price:,.2f}  (${rec.value_usd:,.2f}投資)")
             else:
                 print(f"\n[SKIP] {rec_ticker} は既に保有中またはポジション上限")

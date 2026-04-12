@@ -19,7 +19,7 @@ INTERVAL_SECONDS = 86400    # 24時間
 SELL_SCORE       = -2        # このスコア以下で売り
 
 
-def make_trade_record(rec):
+def make_trade_record(rec, signals=None):
     class Compat: pass
     r = Compat()
     r.timestamp     = rec.timestamp
@@ -34,6 +34,7 @@ def make_trade_record(rec):
     r.confidence    = rec.confidence
     r.risk_level    = rec.risk_level
     r.bot_type      = "MEDIUM"
+    r.signals_json  = signals
     return r
 
 
@@ -108,7 +109,7 @@ def run_cycle(portfolio: Portfolio, analyzer: MediumTermAnalyzer):
             rec = portfolio.buy(primary, price, analysis["reasoning"],
                                 analysis["confidence"], analysis["risk_level"])
             if rec:
-                save_trade(make_trade_record(rec))
+                save_trade(make_trade_record(rec, signals=analysis.get("signals")))
                 print(f"\n[BUY]  {primary} {rec.shares:.6f} @ ${price:,.2f}  (${rec.value_usd:,.2f}投資)")
             else:
                 print(f"\n[SKIP] {primary} は既に保有中またはポジション上限")

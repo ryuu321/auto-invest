@@ -32,8 +32,9 @@ class MediumTermAnalyzer:
 
     def __init__(self):
         t = load_thresholds("MEDIUM")
-        self.BUY_THRESHOLD  = t["buy_threshold"]
-        self.SELL_THRESHOLD = t["sell_threshold"]
+        self.BUY_THRESHOLD   = t["buy_threshold"]
+        self.SELL_THRESHOLD  = t["sell_threshold"]
+        self.SIGNAL_WEIGHTS  = t.get("signal_weights", {})
 
     def analyze(self, market_data: dict) -> dict:
         signals = []
@@ -92,7 +93,10 @@ class MediumTermAnalyzer:
         elif ns <= -4:
             signals.append(Signal("News", -1, f"ニュース強ネガティブ({ns})"))
 
-        total = sum(s.score for s in signals)
+        total = sum(
+            s.score * self.SIGNAL_WEIGHTS.get(s.name, 1.0)
+            for s in signals
+        )
 
         if total >= self.BUY_THRESHOLD:
             decision: Decision = "BUY"

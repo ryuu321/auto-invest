@@ -30,14 +30,19 @@ def init_db():
             reasoning TEXT,
             confidence REAL,
             risk_level TEXT,
-            bot_type TEXT DEFAULT 'SHORT'
+            bot_type TEXT DEFAULT 'SHORT',
+            signals_json TEXT
         )
     """)
-    # 既存DBに bot_type カラムがなければ追加
-    try:
-        cur.execute("ALTER TABLE trades ADD COLUMN bot_type TEXT DEFAULT 'SHORT'")
-    except Exception:
-        pass  # 既に存在する場合は無視
+    # 既存DBに不足カラムがあれば追加
+    for col, definition in [
+        ("bot_type",     "TEXT DEFAULT 'SHORT'"),
+        ("signals_json", "TEXT"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE trades ADD COLUMN {col} {definition}")
+        except Exception:
+            pass
     cur.execute("""
         CREATE TABLE IF NOT EXISTS market_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,19 +71,37 @@ def init_db():
     conn.close()
 
 
+class _SafeEncoder(json.JSONEncoder):
+    """numpy/pandas の bool・数値型もシリアライズできるエンコーダー"""
+    def default(self, obj):
+        import numpy as np
+        if isinstance(obj, (np.bool_,)):
+            return bool(obj)
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
 def save_trade(record) -> int:
-    bot_type = getattr(record, "bot_type", "SHORT")
+    bot_type    = getattr(record, "bot_type",     "SHORT")
+    signals_raw = getattr(record, "signals_json", None)
+    signals_str = json.dumps(signals_raw, ensure_ascii=False, cls=_SafeEncoder) if signals_raw else None
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO trades
-        (timestamp, action, coin, price, amount, value_usd, balance_after, pnl, reasoning, confidence, risk_level, bot_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (timestamp, action, coin, price, amount, value_usd, balance_after, pnl,
+         reasoning, confidence, risk_level, bot_type, signals_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         record.timestamp, record.action, record.coin,
         record.price, record.amount, record.value_usd,
         record.balance_after, record.pnl, record.reasoning,
-        record.confidence, record.risk_level, bot_type,
+        record.confidence, record.risk_level, bot_type, signals_str,
     ))
     conn.commit()
     trade_id = cur.lastrowid
@@ -106,21 +129,6 @@ def _append_text_log(record):
     )
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(line)
-
-
-class _SafeEncoder(json.JSONEncoder):
-    """numpy/pandas の bool・数値型もシリアライズできるエンコーダー"""
-    def default(self, obj):
-        import numpy as np
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super().default(obj)
 
 
 def save_snapshot(market_data: dict):

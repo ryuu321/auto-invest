@@ -33,8 +33,9 @@ class LongTermAnalyzer:
 
     def __init__(self):
         t = load_thresholds("LONG")
-        self.BUY_THRESHOLD  = t["buy_threshold"]
-        self.SELL_THRESHOLD = t["sell_threshold"]
+        self.BUY_THRESHOLD   = t["buy_threshold"]
+        self.SELL_THRESHOLD  = t["sell_threshold"]
+        self.SIGNAL_WEIGHTS  = t.get("signal_weights", {})
 
     def analyze(self, market_data: dict) -> dict:
         signals = []
@@ -106,7 +107,10 @@ class LongTermAnalyzer:
         elif fund_score <= 0:
             signals.append(Signal("Overall", -1, f"{primary} 総合ファンダスコア={fund_score} 要注意"))
 
-        total = sum(s.score for s in signals)
+        total = sum(
+            s.score * self.SIGNAL_WEIGHTS.get(s.name, 1.0)
+            for s in signals
+        )
 
         if total >= self.BUY_THRESHOLD:
             decision: Decision = "BUY"
