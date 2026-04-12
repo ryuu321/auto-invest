@@ -5,6 +5,9 @@ on:
     - cron: '0 2 * * 1'   # 毎週月曜 UTC 2:00（日本時間 11:00）
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run-long-bot:
     runs-on: ubuntu-latest

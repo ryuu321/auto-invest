@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'   # 毎時0分に実行
   workflow_dispatch:        # 手動実行ボタン
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run-short-bot:
     runs-on: ubuntu-latest
