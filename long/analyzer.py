@@ -3,9 +3,13 @@
 ファンダメンタルズ + 世界情勢で判断
 バフェット流：良い企業を適正価格で買う
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 
 from dataclasses import dataclass
 from typing import Literal
+from learner import load_thresholds
 
 Decision = Literal["BUY", "SELL", "HOLD"]
 
@@ -18,17 +22,19 @@ class Signal:
 
 class LongTermAnalyzer:
     """
-    長期スコアリング
+    長期スコアリング（しきい値は学習により自動調整）
 
-    BUY  : score >= +4（慎重に・確信が高いときだけ）
-    SELL : score <= -4
+    BUY  : score >= +4 (default)（慎重に・確信が高いときだけ）
+    SELL : score <= -4 (default)
     HOLD : -3 〜 +3
 
     長期なので閾値は最も高い
     """
 
-    BUY_THRESHOLD  =  4
-    SELL_THRESHOLD = -4
+    def __init__(self):
+        t = load_thresholds("LONG")
+        self.BUY_THRESHOLD  = t["buy_threshold"]
+        self.SELL_THRESHOLD = t["sell_threshold"]
 
     def analyze(self, market_data: dict) -> dict:
         signals = []

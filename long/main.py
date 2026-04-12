@@ -12,6 +12,7 @@ from analyzer import LongTermAnalyzer
 from portfolio import Portfolio
 from logger import init_db, save_trade, save_snapshot
 from summary import write_summary
+from learner import learn, print_report
 
 INITIAL_BALANCE  = 10000.0
 INTERVAL_SECONDS = 604800   # 1週間
@@ -139,6 +140,8 @@ def main():
 
     try:
         run_cycle(portfolio, analyzer)
+        learn("LONG")
+        print_report("LONG")
     except Exception as e:
         import traceback
         print(f"[ERROR] {e}")

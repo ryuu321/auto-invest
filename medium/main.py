@@ -12,6 +12,7 @@ from analyzer import MediumTermAnalyzer
 from portfolio import Portfolio
 from logger import init_db, save_trade, save_snapshot
 from summary import write_summary
+from learner import learn, print_report
 
 INITIAL_BALANCE  = 10000.0
 INTERVAL_SECONDS = 86400    # 24時間
@@ -137,6 +138,8 @@ def main():
 
     try:
         run_cycle(portfolio, analyzer)
+        learn("MEDIUM")
+        print_report("MEDIUM")
     except Exception as e:
         import traceback
         print(f"[ERROR] {e}")

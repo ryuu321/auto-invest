@@ -2,9 +2,13 @@
 中期投資 分析モジュール
 移動平均・トレンド・ゴールデンクロスで判断
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 
 from dataclasses import dataclass
 from typing import Literal
+from learner import load_thresholds
 
 Decision = Literal["BUY", "SELL", "HOLD"]
 
@@ -17,17 +21,19 @@ class Signal:
 
 class MediumTermAnalyzer:
     """
-    中期スコアリング
+    中期スコアリング（しきい値は学習により自動調整）
 
-    BUY  : score >= +3
-    SELL : score <= -3
+    BUY  : score >= +3 (default)
+    SELL : score <= -3 (default)
     HOLD : -2 〜 +2
 
     短期より閾値が高い（慎重に動く）
     """
 
-    BUY_THRESHOLD  =  3
-    SELL_THRESHOLD = -3
+    def __init__(self):
+        t = load_thresholds("MEDIUM")
+        self.BUY_THRESHOLD  = t["buy_threshold"]
+        self.SELL_THRESHOLD = t["sell_threshold"]
 
     def analyze(self, market_data: dict) -> dict:
         signals = []

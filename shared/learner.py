@@ -1,151 +1,105 @@
 """
-学習モジュール
-ペーパートレードのログを分析し、どのルールが機能しているかを評価する。
-蓄積されたデータをもとにルールの閾値を自動調整する。
+学習モジュール — 過去のトレード結果からしきい値を自動調整する
+SHORT/MEDIUM/LONG 全ボット共通
 """
-
-import sqlite3
 import json
+import sqlite3
 from pathlib import Path
-from dataclasses import dataclass
 
-DB_PATH = Path(__file__).parent.parent / "data" / "trades.db"
-LEARNED_PATH = Path(__file__).parent.parent / "data" / "learned_thresholds.json"
+DATA_DIR = Path(__file__).parent.parent / "data"
+DB_PATH  = DATA_DIR / "trades.db"
 
-# デフォルトの閾値
-DEFAULT_THRESHOLDS = {
-    "rsi_oversold":     30.0,   # これ以下でBUYシグナル
-    "rsi_overbought":   70.0,   # これ以上でSELLシグナル
-    "fear_greed_buy":   25,     # これ以下でBUYシグナル
-    "fear_greed_sell":  75,     # これ以上でSELLシグナル
-    "news_positive":     3,     # これ以上でBUYシグナル
-    "news_negative":    -3,     # これ以下でSELLシグナル
-    "buy_threshold":     2,     # 合計スコアがこれ以上でBUY
-    "sell_threshold":   -2,     # 合計スコアがこれ以下でSELL
+DEFAULTS = {
+    "SHORT":  {"buy_threshold": 2,  "sell_threshold": -2, "min_buy": 1, "max_buy": 4,  "min_sell": -4,  "max_sell": -1},
+    "MEDIUM": {"buy_threshold": 3,  "sell_threshold": -3, "min_buy": 2, "max_buy": 5,  "min_sell": -5,  "max_sell": -2},
+    "LONG":   {"buy_threshold": 4,  "sell_threshold": -4, "min_buy": 3, "max_buy": 6,  "min_sell": -6,  "max_sell": -3},
 }
 
-
-@dataclass
-class LearningReport:
-    total_sells: int
-    win_rate: float
-    avg_pnl: float
-    best_rule: str
-    worst_rule: str
-    suggested_thresholds: dict
-    summary: str
+MIN_TRADES_TO_LEARN = 5
 
 
-def load_thresholds() -> dict:
-    """学習済み閾値を読み込む（なければデフォルト）"""
-    if LEARNED_PATH.exists():
-        return json.loads(LEARNED_PATH.read_text(encoding="utf-8"))
-    return DEFAULT_THRESHOLDS.copy()
+def _threshold_file(bot_type: str) -> Path:
+    return DATA_DIR / f"learned_thresholds_{bot_type.lower()}.json"
 
 
-def save_thresholds(thresholds: dict):
-    """学習済み閾値を保存"""
-    LEARNED_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LEARNED_PATH.write_text(json.dumps(thresholds, indent=2, ensure_ascii=False), encoding="utf-8")
+def load_thresholds(bot_type: str) -> dict:
+    path = _threshold_file(bot_type)
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return dict(DEFAULTS.get(bot_type, DEFAULTS["SHORT"]))
 
 
-def analyze() -> LearningReport:
-    """トレード履歴を分析してルール評価レポートを生成"""
+def save_thresholds(bot_type: str, thresholds: dict):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    _threshold_file(bot_type).write_text(
+        json.dumps(thresholds, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def learn(bot_type: str) -> dict:
+    current = load_thresholds(bot_type)
+    defaults = DEFAULTS.get(bot_type, DEFAULTS["SHORT"])
+
     if not DB_PATH.exists():
-        return LearningReport(
-            total_sells=0, win_rate=0.0, avg_pnl=0.0,
-            best_rule="データなし", worst_rule="データなし",
-            suggested_thresholds=DEFAULT_THRESHOLDS,
-            summary="まだ取引データがありません。ペーパートレードを続けてください。"
-        )
+        return current
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # SELL取引のみ分析（実際に決済した取引）
-    cur.execute("SELECT * FROM trades WHERE action = 'SELL' ORDER BY timestamp")
-    sells = [dict(r) for r in cur.fetchall()]
+    try:
+        cur.execute("""
+            SELECT pnl, confidence
+            FROM trades
+            WHERE action='SELL'
+              AND COALESCE(bot_type, 'SHORT') = ?
+            ORDER BY timestamp DESC
+            LIMIT 20
+        """, (bot_type,))
+        rows = cur.fetchall()
+    except Exception:
+        conn.close()
+        return current
+    finally:
+        conn.close()
 
-    # BUY取引のreasoning分析
-    cur.execute("SELECT reasoning, pnl FROM trades WHERE action = 'SELL'")
-    reasoning_rows = cur.fetchall()
+    if len(rows) < MIN_TRADES_TO_LEARN:
+        print(f"[LEARN/{bot_type}] トレード数不足 ({len(rows)}/{MIN_TRADES_TO_LEARN})。学習スキップ。")
+        return current
 
-    conn.close()
+    wins  = sum(1 for r in rows if r["pnl"] > 0)
+    total = len(rows)
+    win_rate = wins / total
 
-    total_sells = len(sells)
-    if total_sells == 0:
-        thresholds = load_thresholds()
-        return LearningReport(
-            total_sells=0, win_rate=0.0, avg_pnl=0.0,
-            best_rule="データ蓄積中", worst_rule="データ蓄積中",
-            suggested_thresholds=thresholds,
-            summary=f"SELL取引がまだありません。現在のルールで継続学習中です。"
-        )
+    avg_conf_loses = sum(r["confidence"] for r in rows if r["pnl"] <= 0) / max(total - wins, 1)
 
-    wins = [t for t in sells if t["pnl"] > 0]
-    win_rate = len(wins) / total_sells * 100
-    avg_pnl = sum(t["pnl"] for t in sells) / total_sells
+    buy_t  = current["buy_threshold"]
+    sell_t = current["sell_threshold"]
 
-    # ルール別勝率を分析（reasoningからルール名を抽出）
-    rule_stats = {}
-    for row in reasoning_rows:
-        reasoning = row[0] or ""
-        pnl = row[1] or 0
-        # reasoningからルール名を抽出
-        for rule in ["RSI", "MACD", "BB", "FearGreed", "News"]:
-            if rule in reasoning:
-                if rule not in rule_stats:
-                    rule_stats[rule] = {"wins": 0, "total": 0, "pnl": 0}
-                rule_stats[rule]["total"] += 1
-                rule_stats[rule]["pnl"] += pnl
-                if pnl > 0:
-                    rule_stats[rule]["wins"] += 1
+    if win_rate < 0.4:
+        buy_t = min(buy_t + 1, defaults["max_buy"])
+        print(f"[LEARN/{bot_type}] 勝率低({win_rate:.0%}) → buy_threshold {current['buy_threshold']}→{buy_t}")
+    elif win_rate > 0.65:
+        buy_t = max(buy_t - 1, defaults["min_buy"])
+        print(f"[LEARN/{bot_type}] 勝率高({win_rate:.0%}) → buy_threshold {current['buy_threshold']}→{buy_t}")
 
-    best_rule = max(rule_stats, key=lambda r: rule_stats[r]["pnl"]) if rule_stats else "分析中"
-    worst_rule = min(rule_stats, key=lambda r: rule_stats[r]["pnl"]) if rule_stats else "分析中"
+    if avg_conf_loses > 0.6 and win_rate < 0.5:
+        buy_t = min(buy_t + 1, defaults["max_buy"])
+        print(f"[LEARN/{bot_type}] 高確信度での負け多発 → buy_threshold さらに {buy_t}")
 
-    # 閾値の自動調整
-    thresholds = load_thresholds()
-    suggested = thresholds.copy()
+    current["buy_threshold"]  = buy_t
+    current["sell_threshold"] = sell_t
 
-    # 勝率が低い場合は閾値を厳しくする
-    if win_rate < 50 and total_sells >= 10:
-        suggested["buy_threshold"] = min(thresholds["buy_threshold"] + 1, 4)
-        suggested["sell_threshold"] = max(thresholds["sell_threshold"] - 1, -4)
-
-    # 勝率が高い場合は閾値を緩める（より多くの取引機会）
-    elif win_rate > 70 and total_sells >= 10:
-        suggested["buy_threshold"] = max(thresholds["buy_threshold"] - 1, 1)
-        suggested["sell_threshold"] = min(thresholds["sell_threshold"] + 1, -1)
-
-    # 学習結果を保存
-    if suggested != thresholds and total_sells >= 10:
-        save_thresholds(suggested)
-
-    summary_lines = [
-        f"取引回数: {total_sells}  勝率: {win_rate:.1f}%  平均損益: ${avg_pnl:,.2f}",
-        f"最も効いたルール: {best_rule}",
-        f"最も効かなかったルール: {worst_rule}",
-    ]
-    if suggested != thresholds:
-        summary_lines.append(f"閾値を自動調整しました: BUY={suggested['buy_threshold']} SELL={suggested['sell_threshold']}")
-    else:
-        summary_lines.append("現在の閾値を継続使用")
-
-    return LearningReport(
-        total_sells=total_sells,
-        win_rate=win_rate,
-        avg_pnl=avg_pnl,
-        best_rule=best_rule,
-        worst_rule=worst_rule,
-        suggested_thresholds=suggested,
-        summary=" | ".join(summary_lines)
-    )
+    save_thresholds(bot_type, current)
+    print(f"[LEARN/{bot_type}] 完了: buy={buy_t} sell={sell_t}  (勝率={win_rate:.0%} N={total})")
+    return current
 
 
-def print_report():
-    report = analyze()
-    print("\n=== 学習レポート ===")
-    print(f"  {report.summary}")
-    print(f"  現在の閾値: {json.dumps(report.suggested_thresholds, ensure_ascii=False)}")
+def print_report(bot_type: str = "SHORT"):
+    t = load_thresholds(bot_type)
+    print(f"\n[学習パラメータ / {bot_type}]")
+    for k, v in t.items():
+        print(f"  {k}: {v}")
