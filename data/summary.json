@@ -1,22 +1,50 @@
 {
-  "updated_at": "2026-06-01T06:00:34.946966+00:00",
+  "updated_at": "2026-06-01T06:50:40.720671+00:00",
   "portfolios": {
     "LONG": {
-      "balance": 8500.0,
+      "balance": 8772.863132634076,
       "initial_balance": 10000.0,
       "positions": {
         "MSFT": {
           "ticker": "MSFT",
-          "shares": 4.044543910265053,
-          "buy_price": 370.87,
-          "bought_at": "2026-04-12T18:18:29.882314+00:00",
-          "cost_basis": 1500.0,
-          "peak_price": 424.6
+          "shares": 3.4385046142583082,
+          "buy_price": 450.24,
+          "bought_at": "2026-06-01T06:50:40.718708+00:00",
+          "cost_basis": 1548.1523175236607,
+          "peak_price": 450.24
         }
       }
     }
   },
   "recent_trades": [
+    {
+      "timestamp": "2026-06-01T06:50:40.718724+00:00",
+      "action": "BUY",
+      "coin": "MSFT",
+      "price": 450.24,
+      "amount": 3.4385046142583082,
+      "value_usd": 1548.1523175236607,
+      "balance_after": 8772.863132634076,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+6.0 → BUY | PER=26.8 やや高め | 売上成長率=18.3% 成長継続 | 利益率=39.3% 高収益企業 | D/E=30 低負債 → 財務健全 | ROE=34.0% 資本効率が高い | MSFT 総合ファンダスコア=6 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-06-01T06:50:40.717303+00:00",
+      "action": "SELL",
+      "coin": "MSFT",
+      "price": 450.24,
+      "amount": 4.044543910265053,
+      "value_usd": 1821.0154501577374,
+      "balance_after": 10321.015450157738,
+      "pnl": 321.0154501577374,
+      "reasoning": "利確: +21.4% (閾値+20%)",
+      "confidence": 0.9,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
     {
       "timestamp": "2026-04-12T18:18:29.882328+00:00",
       "action": "BUY",
@@ -61,9 +89,9 @@
     }
   ],
   "stats": {
-    "total_buys": 3,
-    "total_sells": 0,
-    "realized_pnl": 0,
-    "win_rate": 0.0
+    "total_buys": 4,
+    "total_sells": 1,
+    "realized_pnl": 321.02,
+    "win_rate": 100.0
   }
 }
