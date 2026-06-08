@@ -1,22 +1,50 @@
 {
-  "updated_at": "2026-06-08T05:48:33.076153+00:00",
+  "updated_at": "2026-06-08T06:38:57.219666+00:00",
   "portfolios": {
     "LONG": {
-      "balance": 8772.863132634076,
+      "balance": 8674.747122718523,
       "initial_balance": 10000.0,
       "positions": {
         "MSFT": {
           "ticker": "MSFT",
-          "shares": 3.4385046142583082,
-          "buy_price": 450.24,
-          "bought_at": "2026-06-01T06:50:40.718708+00:00",
-          "cost_basis": 1548.1523175236607,
-          "peak_price": 450.24
+          "shares": 3.6739811542433167,
+          "buy_price": 416.67,
+          "bought_at": "2026-06-08T06:38:57.218033+00:00",
+          "cost_basis": 1530.8377275385628,
+          "peak_price": 416.67
         }
       }
     }
   },
   "recent_trades": [
+    {
+      "timestamp": "2026-06-08T06:38:57.218046+00:00",
+      "action": "BUY",
+      "coin": "MSFT",
+      "price": 416.67,
+      "amount": 3.6739811542433167,
+      "value_usd": 1530.8377275385628,
+      "balance_after": 8674.747122718523,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+7.0 → BUY | PER=24.8 適正（15〜25） | 売上成長率=18.3% 成長継続 | 利益率=39.3% 高収益企業 | D/E=30 低負債 → 財務健全 | ROE=34.0% 資本効率が高い | MSFT 総合ファンダスコア=7 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-06-08T06:38:57.216694+00:00",
+      "action": "SELL",
+      "coin": "MSFT",
+      "price": 416.67,
+      "amount": 3.4385046142583082,
+      "value_usd": 1432.7217176230095,
+      "balance_after": 10205.584850257086,
+      "pnl": -115.43059990065126,
+      "reasoning": "トレーリングストップ: 高値$450.24から-7.5% (閾値-7%)",
+      "confidence": 0.9,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
     {
       "timestamp": "2026-06-01T06:50:40.718724+00:00",
       "action": "BUY",
@@ -89,9 +117,9 @@
     }
   ],
   "stats": {
-    "total_buys": 4,
-    "total_sells": 1,
-    "realized_pnl": 321.02,
-    "win_rate": 100.0
+    "total_buys": 5,
+    "total_sells": 2,
+    "realized_pnl": 205.58,
+    "win_rate": 50.0
   }
 }
