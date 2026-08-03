@@ -1,14 +1,14 @@
 {
-  "balance": 8558.357236742671,
+  "balance": 8847.04952961519,
   "initial_balance": 10000.0,
   "positions": {
     "MSFT": {
       "ticker": "MSFT",
-      "shares": 3.980754707158054,
-      "buy_price": 379.4,
-      "bought_at": "2026-06-22T07:18:52.489147+00:00",
-      "cost_basis": 1510.2983358957656,
-      "peak_price": 393.82
+      "shares": 3.3595369999956413,
+      "buy_price": 464.72,
+      "bought_at": "2026-08-03T05:37:18.168106+00:00",
+      "cost_basis": 1561.2440346379744,
+      "peak_price": 464.72
     }
   }
 }
