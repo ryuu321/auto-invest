@@ -1,5 +1,5 @@
 {
-  "balance": 8847.04952961519,
+  "balance": 7519.992100172911,
   "initial_balance": 10000.0,
   "positions": {
     "MSFT": {
@@ -9,6 +9,14 @@
       "bought_at": "2026-08-03T05:37:18.168106+00:00",
       "cost_basis": 1561.2440346379744,
       "peak_price": 535.07
+    },
+    "GOOGL": {
+      "ticker": "GOOGL",
+      "shares": 4.742200648378639,
+      "buy_price": 279.84,
+      "bought_at": "2026-11-02T08:45:34.826982+00:00",
+      "cost_basis": 1327.0574294422784,
+      "peak_price": 279.84
     }
   }
 }

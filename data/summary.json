@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-11-02T06:59:30.530420+00:00",
+  "updated_at": "2026-11-02T08:45:34.829211+00:00",
   "portfolios": {
     "LONG": {
-      "balance": 8847.04952961519,
+      "balance": 7519.992100172911,
       "initial_balance": 10000.0,
       "positions": {
         "MSFT": {
@@ -12,11 +12,33 @@
           "bought_at": "2026-08-03T05:37:18.168106+00:00",
           "cost_basis": 1561.2440346379744,
           "peak_price": 535.07
+        },
+        "GOOGL": {
+          "ticker": "GOOGL",
+          "shares": 4.742200648378639,
+          "buy_price": 279.84,
+          "bought_at": "2026-11-02T08:45:34.826982+00:00",
+          "cost_basis": 1327.0574294422784,
+          "peak_price": 279.84
         }
       }
     }
   },
   "recent_trades": [
+    {
+      "timestamp": "2026-11-02T08:45:34.826998+00:00",
+      "action": "BUY",
+      "coin": "GOOGL",
+      "price": 279.84,
+      "amount": 4.742200648378639,
+      "value_usd": 1327.0574294422784,
+      "balance_after": 7519.992100172911,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+10.0 → BUY | PER=14.6 割安（<15）→ バリュー投資機会 | 売上成長率=24.7% 高成長（>20%） | 利益率=50.0% 高収益企業 | D/E=22 低負債 → 財務健全 | ROE=44.3% 資本効率が高い | 高値から-31.5% 下落 → 割安感あり（逆張り機会） | GOOGL 総合ファンダスコア=8 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
     {
       "timestamp": "2026-08-03T05:37:18.168120+00:00",
       "action": "BUY",
@@ -173,7 +195,7 @@
     }
   ],
   "stats": {
-    "total_buys": 7,
+    "total_buys": 8,
     "total_sells": 4,
     "realized_pnl": 408.29,
     "win_rate": 50.0
