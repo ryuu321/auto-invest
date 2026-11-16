@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-11-16T07:38:42.310256+00:00",
+  "updated_at": "2026-11-16T08:55:17.825097+00:00",
   "portfolios": {
     "LONG": {
-      "balance": 7519.992100172911,
+      "balance": 6391.993285146974,
       "initial_balance": 10000.0,
       "positions": {
         "MSFT": {
@@ -19,12 +19,34 @@
           "buy_price": 279.84,
           "bought_at": "2026-11-02T08:45:34.826982+00:00",
           "cost_basis": 1327.0574294422784,
-          "peak_price": 284.78
+          "peak_price": 295.77
+        },
+        "NVDA": {
+          "ticker": "NVDA",
+          "shares": 6.926612312102773,
+          "buy_price": 162.85,
+          "bought_at": "2026-11-16T08:55:17.823347+00:00",
+          "cost_basis": 1127.9988150259367,
+          "peak_price": 162.85
         }
       }
     }
   },
   "recent_trades": [
+    {
+      "timestamp": "2026-11-16T08:55:17.823357+00:00",
+      "action": "BUY",
+      "coin": "NVDA",
+      "price": 162.85,
+      "amount": 6.926612312102773,
+      "value_usd": 1127.9988150259367,
+      "balance_after": 6391.993285146974,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+10.0 → BUY | PER=20.6 適正（15〜25） | 予想PER=10.3 < 実績20.6 → 利益成長加速の期待 | 売上成長率=105.9% 高成長（>20%） | 利益率=63.7% 高収益企業 | D/E=17 低負債 → 財務健全 | ROE=117.2% 資本効率が高い | 高値から-33.1% 下落 → 割安感あり（逆張り機会） | NVDA 総合ファンダスコア=8 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
     {
       "timestamp": "2026-11-02T08:45:34.826998+00:00",
       "action": "BUY",
@@ -195,7 +217,7 @@
     }
   ],
   "stats": {
-    "total_buys": 8,
+    "total_buys": 9,
     "total_sells": 4,
     "realized_pnl": 408.29,
     "win_rate": 50.0

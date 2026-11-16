@@ -1,5 +1,5 @@
 {
-  "balance": 7519.992100172911,
+  "balance": 6391.993285146974,
   "initial_balance": 10000.0,
   "positions": {
     "MSFT": {
@@ -16,7 +16,15 @@
       "buy_price": 279.84,
       "bought_at": "2026-11-02T08:45:34.826982+00:00",
       "cost_basis": 1327.0574294422784,
-      "peak_price": 284.78
+      "peak_price": 295.77
+    },
+    "NVDA": {
+      "ticker": "NVDA",
+      "shares": 6.926612312102773,
+      "buy_price": 162.85,
+      "bought_at": "2026-11-16T08:55:17.823347+00:00",
+      "cost_basis": 1127.9988150259367,
+      "peak_price": 162.85
     }
   }
 }
