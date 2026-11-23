@@ -1,0 +1,20 @@
+{
+  "buy_threshold": 4,
+  "sell_threshold": -4,
+  "min_buy": 3,
+  "max_buy": 7,
+  "min_sell": -7,
+  "max_sell": -3,
+  "signal_weights": {
+    "Revenue": 0.65,
+    "Margin": 0.65,
+    "Debt": 0.65,
+    "ROE": 0.65,
+    "Overall": 0.65,
+    "PE": 0.65,
+    "Price": 0.71,
+    "ForwardPE": 1.0,
+    "Macro": 1.0
+  },
+  "regime": "BEAR"
+}

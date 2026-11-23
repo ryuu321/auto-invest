@@ -1,30 +1,14 @@
 {
-  "balance": 6391.993285146974,
+  "balance": 8625.215375041767,
   "initial_balance": 10000.0,
   "positions": {
-    "MSFT": {
-      "ticker": "MSFT",
-      "shares": 3.3595369999956413,
-      "buy_price": 464.72,
-      "bought_at": "2026-08-03T05:37:18.168106+00:00",
-      "cost_basis": 1561.2440346379744,
-      "peak_price": 535.07
-    },
-    "GOOGL": {
-      "ticker": "GOOGL",
-      "shares": 4.742200648378639,
-      "buy_price": 279.84,
-      "bought_at": "2026-11-02T08:45:34.826982+00:00",
-      "cost_basis": 1327.0574294422784,
-      "peak_price": 295.77
-    },
     "NVDA": {
       "ticker": "NVDA",
-      "shares": 6.926612312102773,
-      "buy_price": 162.85,
-      "bought_at": "2026-11-16T08:55:17.823347+00:00",
-      "cost_basis": 1127.9988150259367,
-      "peak_price": 162.85
+      "shares": 12.125363107541814,
+      "buy_price": 125.53,
+      "bought_at": "2026-11-23T10:11:01.224287+00:00",
+      "cost_basis": 1522.0968308897238,
+      "peak_price": 125.53
     }
   }
 }

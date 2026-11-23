@@ -1,38 +1,78 @@
 {
-  "updated_at": "2026-11-23T08:26:08.502570+00:00",
+  "updated_at": "2026-11-23T10:11:01.231374+00:00",
   "portfolios": {
     "LONG": {
-      "balance": 6391.993285146974,
+      "balance": 8625.215375041767,
       "initial_balance": 10000.0,
       "positions": {
-        "MSFT": {
-          "ticker": "MSFT",
-          "shares": 3.3595369999956413,
-          "buy_price": 464.72,
-          "bought_at": "2026-08-03T05:37:18.168106+00:00",
-          "cost_basis": 1561.2440346379744,
-          "peak_price": 535.07
-        },
-        "GOOGL": {
-          "ticker": "GOOGL",
-          "shares": 4.742200648378639,
-          "buy_price": 279.84,
-          "bought_at": "2026-11-02T08:45:34.826982+00:00",
-          "cost_basis": 1327.0574294422784,
-          "peak_price": 295.77
-        },
         "NVDA": {
           "ticker": "NVDA",
-          "shares": 6.926612312102773,
-          "buy_price": 162.85,
-          "bought_at": "2026-11-16T08:55:17.823347+00:00",
-          "cost_basis": 1127.9988150259367,
-          "peak_price": 162.85
+          "shares": 12.125363107541814,
+          "buy_price": 125.53,
+          "bought_at": "2026-11-23T10:11:01.224287+00:00",
+          "cost_basis": 1522.0968308897238,
+          "peak_price": 125.53
         }
       }
     }
   },
   "recent_trades": [
+    {
+      "timestamp": "2026-11-23T10:11:01.224299+00:00",
+      "action": "BUY",
+      "coin": "NVDA",
+      "price": 125.53,
+      "amount": 12.125363107541814,
+      "value_usd": 1522.0968308897238,
+      "balance_after": 8625.215375041767,
+      "pnl": 0.0,
+      "reasoning": "合計スコア:+11.0 → BUY | PER=13.5 割安（<15）→ バリュー投資機会 | 予想PER=7.6 < 実績13.5 → 利益成長加速の期待 | 売上成長率=103.2% 高成長（>20%） | 利益率=62.5% 高収益企業 | D/E=14 低負債 → 財務健全 | ROE=117.4% 資本効率が高い | 高値から-48.4% 下落 → 割安感あり（逆張り機会） | NVDA 総合ファンダスコア=9 優良株",
+      "confidence": 1.0,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-11-23T10:11:01.222396+00:00",
+      "action": "SELL",
+      "coin": "NVDA",
+      "price": 125.53,
+      "amount": 6.926612312102773,
+      "value_usd": 869.4976435382612,
+      "balance_after": 10147.312205931492,
+      "pnl": -258.5011714876755,
+      "reasoning": "損切り: -22.9% (閾値-10%)",
+      "confidence": 0.9,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-11-23T10:11:01.220693+00:00",
+      "action": "SELL",
+      "coin": "GOOGL",
+      "price": 265.29,
+      "amount": 4.742200648378639,
+      "value_usd": 1258.0584100083693,
+      "balance_after": 9277.81456239323,
+      "pnl": -68.9990194339091,
+      "reasoning": "トレーリングストップ: 高値$295.77から-10.3% (閾値-7%)",
+      "confidence": 0.9,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
+    {
+      "timestamp": "2026-11-23T10:11:01.218610+00:00",
+      "action": "SELL",
+      "coin": "MSFT",
+      "price": 484.52,
+      "amount": 3.3595369999956413,
+      "value_usd": 1627.762867237888,
+      "balance_after": 8019.756152384862,
+      "pnl": 66.5188325999136,
+      "reasoning": "トレーリングストップ: 高値$535.07から-9.4% (閾値-7%)",
+      "confidence": 0.9,
+      "risk_level": "LOW",
+      "bot_type": "LONG"
+    },
     {
       "timestamp": "2026-11-16T08:55:17.823357+00:00",
       "action": "BUY",
@@ -217,9 +257,9 @@
     }
   ],
   "stats": {
-    "total_buys": 9,
-    "total_sells": 4,
-    "realized_pnl": 408.29,
-    "win_rate": 50.0
+    "total_buys": 10,
+    "total_sells": 7,
+    "realized_pnl": 147.31,
+    "win_rate": 42.9
   }
 }
